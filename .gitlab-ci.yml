@@ -1,0 +1,34 @@
+image: "python:3.6"
+
+workflow:
+  rules:
+  - if: $CI_MERGE_REQUEST_ID                   # Execute in MR context.
+  - if: $CI_COMMIT_BRANCH == 'master'          # Execute when pushed to master.
+  - if: $CI_COMMIT_BRANCH == 'dev/experiments' # Execute when pushed to dev/experiments.
+
+before_script:
+  - python --version
+  # Set up the SSH key for accessing our private repos.
+  - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+  - eval $(ssh-agent -s)
+  - echo "$SSH_PRIVATE_KEY" | ssh-add -
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+  - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+  # Install the package.
+  - pip install -e .[dev,mrunner,tracex]
+
+stages:
+  - Static Analysis
+  - Unit Testing
+
+pylint:
+  stage: Static Analysis
+  script:
+  - pylint alpacka
+  - pylint tools/tracex
+
+pytest:
+  stage: Unit Testing
+  script:
+  - pytest alpacka

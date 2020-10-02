@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://unpkg.com/d3@5.15.0/dist/d3.min.js"></script>
+<script src="tree.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+(async () => {
+    const data = await d3.json("/data");
+    buildTree(data);
+})();
+</script>
+<div class="canvas"></div>
+<div class="sidebar">
+<h1><span class="light">trac</span><span class="dark">ex</span></h1>
+<div class="toolbar">
+<i class="fa fa-image toggle-graph"></i>
+</div>
+<div class="info graph"></div>
+<div class="info text"></div>
+<div class="legend graph visible"></div>
+<div class="legend graph placeholder"></div>
+</div>
+</body>
+</html>

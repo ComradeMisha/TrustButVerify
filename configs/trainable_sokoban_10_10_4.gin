@@ -1,0 +1,149 @@
+# Config for stable Sokoban (10, 10, 4) with TrainableEnv and
+# DeterministicMCTSAgent.
+#
+# Following experiments have been conducted
+#  _______________________________________________________________________
+# | neptune  | model_class       | n_passes | solved_rate | time_training |
+# |----------|-------------------|----------|-------------|---------------|
+# | PLAN-906 | Sokoban (perfect) | 10       | 0.82328     | 9h  55m       |
+# | PLAN-904 | Sokoban (perfect) | 25       | 0.88948     | 16h 11m       |
+# | PLAN-905 | Sokoban (perfect) | 50       | 0.91017     | 1d  0h        |
+# | PLAN-907 | TrainableSokoban  | 10       | 0.76601     | 21h 41m       |
+# | PLAN-908 | TrainableSokoban  | 25       | 0.85340     | 1d  11h       |
+# | PLAN-909 | TrainableSokoban  | 50       | 0.88410     | 2d  5h        |
+#  -----------------------------------------------------------------------
+#
+# Parameters for Runner:
+# ==============================================================================
+Runner.agent_class = @alpacka.agents.DeterministicMCTSAgent
+Runner.batch_stepper_class = @alpacka.batch_steppers.RayBatchStepper
+Runner.env_class = @alpacka.envs.Sokoban
+Runner.episode_time_limit = 200
+Runner.n_envs = 32
+Runner.n_envs_random_episodes = 64
+Runner.n_epochs = 10000
+Runner.n_model_precollect_episodes = 9e4
+Runner.n_model_pretrain_epochs = 250
+Runner.n_precollect_epochs = 20
+Runner.fine_tune_on_agent_data = True
+Runner.log_rollout_every_n_epochs = 100
+Runner.network_class = @agent/alpacka.networks.KerasNetwork
+Runner.trainer_class = @agent/alpacka.trainers.SupervisedTrainer
+Runner.model_class = @alpacka.envs.TrainableSokoban
+Runner.model_network_class = @model/alpacka.networks.KerasNetwork
+Runner.model_trainer_class = @model/alpacka.trainers.SupervisedTrainer
+
+# Parameters for Model SupervisedTrainer:
+# ==============================================================================
+model/SupervisedTrainer.batch_size = 64
+model/SupervisedTrainer.replay_buffer_capacity = 2e6
+model/SupervisedTrainer.validation_replay_buffer_capacity = 5e4
+model/SupervisedTrainer.n_steps_per_epoch = 50
+model/SupervisedTrainer.validation_split = 0.01
+model/SupervisedTrainer.validate_every_n_epochs = 50
+model/SupervisedTrainer.replay_buffer_sampling_hierarchy = ['solved']
+model/SupervisedTrainer.inputs = @alpacka.trainers.supervised.input_observation_and_action
+model/SupervisedTrainer.target = @alpacka.trainers.supervised.target_model
+
+# Parameters for fcn_with_reward_function:
+# ==============================================================================
+fcn_with_reward_function.cnn_channels = 64
+fcn_with_reward_function.cnn_kernel_size = (5, 5)
+fcn_with_reward_function.cnn_n_layers = 2
+fcn_with_reward_function.batch_norm = True
+fcn_with_reward_function.global_average_pooling = True
+fcn_with_reward_function.output_activation = {
+    'next_observation': 'softmax',
+    'reward': 'sigmoid',
+    'done': 'sigmoid'
+}
+
+# Parameters for scheduling learning rate for model:
+# ==============================================================================
+model/two_step_lr.init_lr = 1e-3
+model/two_step_lr.target_lr = 5e-5
+model/two_step_lr.n_init_epochs = 100
+model/LearningRateScheduler.schedule = @model/alpacka.networks.keras.two_step_lr
+
+# Parameters for Model KerasNetwork:
+# ==============================================================================
+model/KerasNetwork.weight_decay = 1e-5
+model/KerasNetwork.loss = {
+    'next_observation': @categorical_crossentropy,
+    'reward': @binary_crossentropy,
+    'done': @binary_crossentropy
+}
+model/KerasNetwork.model_fn = @alpacka.networks.keras.fcn_with_reward_function
+model/KerasNetwork.optimizer = 'adam'
+model/KerasNetwork.train_callbacks = [
+    @model/tf.keras.callbacks.LearningRateScheduler(),
+]
+model/KerasNetwork.metrics = {
+    'next_observation': ['accuracy',@alpacka.networks.keras.PerfectNextObservation()],
+    'reward': ['accuracy', @reward/Recall(), @reward/Precision()],
+    'done': ['accuracy', @done/Recall(), @done/Precision()],
+}
+
+# Parameters for convnet_mnist:
+# ==============================================================================
+convnet_mnist.activation = 'relu'
+convnet_mnist.d_conv = 64
+convnet_mnist.d_ff = 128
+convnet_mnist.n_conv_layers = 5
+convnet_mnist.output_activation = None
+
+# Parameters for Agent RMSprop:
+# ==============================================================================
+agent/RMSprop.learning_rate = 0.00025
+
+# Parameters for Agent KerasNetwork:
+# ==============================================================================
+agent/KerasNetwork.loss = 'mean_squared_error'
+agent/KerasNetwork.loss_weights = None
+agent/KerasNetwork.metrics = ['mae']
+agent/KerasNetwork.model_fn = @alpacka.networks.keras.convnet_mnist
+agent/KerasNetwork.optimizer = @agent/tf.keras.optimizers.RMSprop()
+agent/KerasNetwork.train_callbacks = None
+agent/KerasNetwork.weight_decay = 0.
+
+# Parameters for Agent SupervisedTrainer:
+# ==============================================================================
+agent/SupervisedTrainer.batch_size = 32
+agent/SupervisedTrainer.n_steps_per_epoch = 64
+agent/SupervisedTrainer.replay_buffer_capacity = 1e5
+agent/SupervisedTrainer.replay_buffer_sampling_hierarchy = ['solved']
+agent/SupervisedTrainer.target = @alpacka.trainers.supervised.target_value
+
+# Parameters for DeterministicMCTSAgent:
+# ==============================================================================
+DeterministicMCTSAgent.avoid_loops = True
+DeterministicMCTSAgent.gamma = 0.99
+DeterministicMCTSAgent.n_passes = 10
+DeterministicMCTSAgent.value_traits_class = @alpacka.agents.deterministic_mcts.ScalarValueTraits
+DeterministicMCTSAgent.value_accumulator_class = @alpacka.agents.deterministic_mcts.ScalarValueAccumulator
+DeterministicMCTSAgent.render_rollout = True
+
+# Parameters for ScalarValueTraits:
+# ==============================================================================
+ScalarValueTraits.dead_end_value = -0.2
+
+# Parameters for Sokoban:
+# ==============================================================================
+Sokoban.dim_room = (10, 10)
+Sokoban.num_boxes = 4
+Sokoban.penalty_for_step = 0
+Sokoban.reward_box_on_target = 0
+Sokoban.reward_finished = 1
+
+# Parameters for input_observation_and_action:
+# ==============================================================================
+input_observation_and_action.actions_space_size = 4
+
+# Parameters for Model metrics:
+# ==============================================================================
+done/Precision.name = 'precision_done'
+done/Recall.name = 'recall_done'
+next_observation/Precision.name = 'precision_next_observation'
+next_observation/Recall.name = 'recall_next_observation'
+reward/Precision.name = 'precision_reward'
+reward/Recall.name = 'recall_reward'

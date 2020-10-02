@@ -1,0 +1,198 @@
+# ==============================================================================
+# This automatically sets these parameters for TrainableHanoi
+Hanoi.n_disks = 4
+Hanoi.reward_for_solved = 1
+Hanoi.reward_for_invalid_action = 0
+
+# Parameters for Runner:
+# ==============================================================================
+Runner.agent_class = @alpacka.agents.BestFirstSearchAgent
+Runner.batch_stepper_class = @alpacka.batch_steppers.LocalBatchStepper
+Runner.env_class = @alpacka.envs.Hanoi
+Runner.episode_time_limit = 1000
+Runner.n_envs = 32
+Runner.n_epochs = 10000
+Runner.n_precollect_epochs = 5
+Runner.n_model_precollect_episodes = 1000
+Runner.n_model_pretrain_epochs = 100
+Runner.fine_tune_on_agent_data = True
+Runner.log_heat_map_every_n_epochs = None
+Runner.log_false_positive_images = False
+Runner.network_class = @agent/KerasNetwork
+Runner.trainer_class = @agent/alpacka.trainers.SupervisedTrainer
+Runner.model_class = @alpacka.envs.TrainableEnsembleModelEnv
+Runner.model_network_class = @model/alpacka.networks.EnsembleNetwork
+Runner.model_trainer_class = @model/alpacka.trainers.SupervisedPriorityTrainer
+Runner.agent_reset_schedule = None
+Runner.clear_model_replay_after_pretrain = False
+Runner.log_n_top_transitions = 10
+Runner.log_graph_distances = True
+Runner.rolling_metrics = [
+    @non_zero_solved/EventFirstOccurrenceMetric(),
+    @stable_over_10/EventFirstStableOccurrenceMetric(),
+    @stability_at_10/StabilityAfterFirstOccurrenceMetric(),
+    @solved_over_75/EventFirstOccurrenceMetric(),
+    @stable_over_75/EventFirstStableOccurrenceMetric(),
+    @stability_at_75/StabilityAfterFirstOccurrenceMetric(),
+]
+
+# Parameters for model/EnsembleNetwork:
+# ==============================================================================
+model/EnsembleNetwork.network_fn = @model/KerasNetwork
+model/EnsembleNetwork.n_networks = 8
+
+# Parameters for TrainableEnsembleModelEnv:
+# ==============================================================================
+TrainableEnsembleModelEnv.model_class = @alpacka.envs.TrainableHanoi
+
+# Parameters for model/mlp:
+# ==============================================================================
+model/mlp.hidden_sizes = (250, 250, 250, 250)
+model/mlp.activation = 'relu'
+model/mlp.output_activation = {
+    'next_observation': None,
+    'reward': 'sigmoid',
+    'done': 'sigmoid'
+}
+
+# Parameters for model/RMSprop:
+# ==============================================================================
+model/RMSprop.learning_rate = 2.5e-4
+
+# Parameters for Model KerasNetwork:
+# ==============================================================================
+model/KerasNetwork.weight_decay = 1e-5
+model/KerasNetwork.loss = {
+    'next_observation': 'mean_squared_error',
+    'reward': @binary_crossentropy,
+    'done': @binary_crossentropy
+}
+model/KerasNetwork.model_fn = @model/alpacka.networks.keras.mlp
+model/KerasNetwork.optimizer = @model/tf.keras.optimizers.RMSprop()
+model/KerasNetwork.metrics = {
+    'next_observation': ['accuracy'],
+    'reward': ['accuracy', @reward/Recall(), @reward/Precision()],
+    'done': ['accuracy', @done/Recall(), @done/Precision()],
+}
+
+# Parameters for Model SupervisedPriorityTrainer:
+# ==============================================================================
+model/SupervisedPriorityTrainer.sample_mode = 'uniform'
+model/SupervisedPriorityTrainer.batch_size = 1024
+model/SupervisedPriorityTrainer.replay_buffer_capacity = 5e5
+model/SupervisedPriorityTrainer.n_steps_per_epoch = 200
+model/SupervisedPriorityTrainer.validation_split = None
+model/SupervisedPriorityTrainer.replay_buffer_sampling_hierarchy = ['solved']
+model/SupervisedPriorityTrainer.inputs = @alpacka.trainers.supervised.input_observation_and_action
+model/SupervisedPriorityTrainer.target = @alpacka.trainers.supervised.target_model_delta
+
+# Parameters for agent/mlp:
+# ==============================================================================
+agent/mlp.hidden_sizes = (50, 50)
+agent/mlp.activation = 'relu'
+agent/mlp.output_activation = None
+
+# Parameters for agent/RMSprop:
+# ==============================================================================
+agent/RMSprop.learning_rate = 2.5e-4
+
+# Parameters for agent/KerasNetwork:
+# ==============================================================================
+agent/KerasNetwork.loss = 'mean_squared_error'
+agent/KerasNetwork.loss_weights = None
+agent/KerasNetwork.metrics = ['mae', 'mse']
+agent/KerasNetwork.model_fn = @agent/alpacka.networks.keras.mlp
+agent/KerasNetwork.optimizer = @agent/tf.keras.optimizers.RMSprop()
+agent/KerasNetwork.train_callbacks = None
+agent/KerasNetwork.weight_decay = 0.
+
+# Parameters for agent/SupervisedTrainer:
+# ==============================================================================
+agent/SupervisedTrainer.batch_size = 32
+agent/SupervisedTrainer.n_steps_per_epoch = 64
+agent/SupervisedTrainer.replay_buffer_capacity = 30000
+agent/SupervisedTrainer.replay_buffer_sampling_hierarchy = ['solved']
+agent/SupervisedTrainer.target = @alpacka.trainers.supervised.target_value
+
+# Parameters for BestFirstSearchAgent:
+# ==============================================================================
+BestFirstSearchAgent.gamma = 0.99
+BestFirstSearchAgent.n_nodes_per_step = 10
+BestFirstSearchAgent.value_traits_class = @alpacka.agents.deterministic_mcts.ScalarValueTraits
+BestFirstSearchAgent.value_accumulator_class = @alpacka.agents.deterministic_mcts.ScalarValueAccumulator
+BestFirstSearchAgent.render_rollout = True
+BestFirstSearchAgent.top_level_epsilon = 0.1
+BestFirstSearchAgent.model_ensemble_size = 8
+BestFirstSearchAgent.model_ensemble_mask_size = 4
+BestFirstSearchAgent.bonus_quantile_threshold = None
+BestFirstSearchAgent.bonus_queue_length = 2000
+BestFirstSearchAgent.expand_heuristic = @alpacka.agents.best_first_search.bonus
+BestFirstSearchAgent.top_level_heuristic = @alpacka.agents.best_first_search.solved_then_auxiliary_then_bonus
+
+# Parameters for ScalarValueTraits:
+# ==============================================================================
+ScalarValueTraits.dead_end_value = -0.2
+ScalarValueTraits.avoid_history_coeff = -0.2
+
+# Parameters for input_observation_and_action:
+# ==============================================================================
+input_observation_and_action.env_class = @alpacka.envs.Hanoi
+
+# Parameters for Model metrics:
+# ==============================================================================
+done/Precision.name = 'precision_done'
+done/Recall.name = 'recall_done'
+next_observation/Precision.name = 'precision_next_observation'
+next_observation/Recall.name = 'recall_next_observation'
+reward/Precision.name = 'precision_reward'
+reward/Recall.name = 'recall_reward'
+
+# Parameters for non_zero_solved/solved_rate_over_threshold:
+# ==============================================================================
+non_zero_solved/solved_rate_over_threshold.threshold = 0
+
+# Parameters for solved_over_10/solved_rate_over_threshold:
+# ==============================================================================
+solved_over_10/solved_rate_over_threshold.threshold = 0.1
+
+# Parameters for solved_over_75/solved_rate_over_threshold:
+# ==============================================================================
+solved_over_75/solved_rate_over_threshold.threshold = 0.75
+
+# Parameters for non_zero_solved/EventFirstOccurrenceMetric:
+# ==============================================================================
+non_zero_solved/EventFirstOccurrenceMetric.check_event_fn = @non_zero_solved/solved_rate_over_threshold
+non_zero_solved/EventFirstOccurrenceMetric.name = 'first_solved_epoch'
+
+# Parameters for stable_over_10/EventFirstStableOccurrenceMetric:
+# ==============================================================================
+stable_over_10/EventFirstStableOccurrenceMetric.check_event_fn = @solved_over_10/solved_rate_over_threshold
+stable_over_10/EventFirstStableOccurrenceMetric.name = 'first_stable_over_10_epoch'
+stable_over_10/EventFirstStableOccurrenceMetric.n_epochs = 10
+stable_over_10/EventFirstStableOccurrenceMetric.stability_ratio = 0.5
+
+# Parameters for stability_at_10/StabilityAfterFirstOccurrenceMetric:
+# ==============================================================================
+stability_at_10/StabilityAfterFirstOccurrenceMetric.check_event_fn = @solved_over_10/solved_rate_over_threshold
+stability_at_10/StabilityAfterFirstOccurrenceMetric.name = 'stability_at_10'
+stability_at_10/StabilityAfterFirstOccurrenceMetric.n_epochs = 10
+stability_at_10/StabilityAfterFirstOccurrenceMetric.stability_ratio = 0.5
+
+# Parameters for solved_over_75/EventFirstOccurrenceMetric:
+# ==============================================================================
+solved_over_75/EventFirstOccurrenceMetric.check_event_fn = @solved_over_75/solved_rate_over_threshold
+solved_over_75/EventFirstOccurrenceMetric.name = 'first_solved_over_75_epoch'
+
+# Parameters for stable_over_75/EventFirstStableOccurrenceMetric:
+# ==============================================================================
+stable_over_75/EventFirstStableOccurrenceMetric.check_event_fn = @solved_over_75/solved_rate_over_threshold
+stable_over_75/EventFirstStableOccurrenceMetric.name = 'first_stable_over_75_epoch'
+stable_over_75/EventFirstStableOccurrenceMetric.n_epochs = 10
+stable_over_75/EventFirstStableOccurrenceMetric.stability_ratio = 0.5
+
+# Parameters for stability_at_75/StabilityAfterFirstOccurrenceMetric:
+# ==============================================================================
+stability_at_75/StabilityAfterFirstOccurrenceMetric.check_event_fn = @solved_over_75/solved_rate_over_threshold
+stability_at_75/StabilityAfterFirstOccurrenceMetric.name = 'stability_at_75'
+stability_at_75/StabilityAfterFirstOccurrenceMetric.n_epochs = 10
+stability_at_75/StabilityAfterFirstOccurrenceMetric.stability_ratio = 0.5

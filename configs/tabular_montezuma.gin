@@ -1,0 +1,108 @@
+# Parameters for Runner:
+# ==============================================================================
+Runner.agent_class = @alpacka.agents.DeterministicMCTSAgent
+Runner.batch_stepper_class = @alpacka.batch_steppers.LocalBatchStepper
+Runner.env_class = @alpacka.envs.ToyMR
+Runner.episode_time_limit = 600
+Runner.n_envs = 32
+Runner.n_epochs = 10000
+Runner.n_precollect_epochs = 5
+Runner.log_rollout_every_n_epochs = 50
+Runner.network_class = @agent/alpacka.networks.EnsembleNetwork
+Runner.trainer_class = @agent/alpacka.trainers.SupervisedTrainer
+Runner.fine_tune_on_agent_data = True
+Runner.model_class = @alpacka.envs.TabularToyMR
+Runner.model_network_class = @alpacka.networks.TabularLookupNetwork
+Runner.model_trainer_class = @model/alpacka.trainers.SupervisedPriorityTrainer
+
+# Parameters for TabularLookupNetwork:
+# ==============================================================================
+TabularLookupNetwork.env = @alpacka.envs.TabularToyMR
+
+# Parameters for Model SupervisedPriorityTrainer:
+# ==============================================================================
+model/SupervisedPriorityTrainer.sample_mode = 'uniform'
+model/SupervisedPriorityTrainer.batch_size = 64
+model/SupervisedPriorityTrainer.replay_buffer_capacity = 5e5
+model/SupervisedPriorityTrainer.n_steps_per_epoch = 200
+model/SupervisedPriorityTrainer.validation_split = None
+model/SupervisedPriorityTrainer.replay_buffer_sampling_hierarchy = ['solved']
+model/SupervisedPriorityTrainer.inputs = @alpacka.trainers.supervised.input_observation_and_action
+model/SupervisedPriorityTrainer.target = @alpacka.trainers.supervised.target_model
+
+# Parameters for agent/mlp:
+# ==============================================================================
+agent/mlp.hidden_sizes = (50, 50)
+agent/mlp.activation = 'relu'
+agent/mlp.output_activation = None
+
+# Parameters for agent/RMSprop:
+# ==============================================================================
+agent/RMSprop.learning_rate = 2.5e-4
+
+# Parameters for EnsembleValueAccumulator:
+# ==============================================================================
+EnsembleValueAccumulator.kappa = 3
+
+# Parameters for EnsembleNetwork:
+# ==============================================================================
+EnsembleNetwork.network_fn = @agent/KerasNetwork
+EnsembleNetwork.n_networks = 20
+
+# Parameters for agent/KerasNetwork:
+# ==============================================================================
+agent/KerasNetwork.loss = 'mean_squared_error'
+agent/KerasNetwork.loss_weights = None
+agent/KerasNetwork.metrics = ['mae', 'mse']
+agent/KerasNetwork.model_fn = @agent/alpacka.networks.keras.mlp
+agent/KerasNetwork.optimizer = @agent/tf.keras.optimizers.RMSprop()
+agent/KerasNetwork.train_callbacks = None
+agent/KerasNetwork.weight_decay = 0.
+
+# Parameters for agent/SupervisedTrainer:
+# ==============================================================================
+agent/SupervisedTrainer.batch_size = 32
+agent/SupervisedTrainer.n_steps_per_epoch = 64
+agent/SupervisedTrainer.replay_buffer_capacity = 1000
+agent/SupervisedTrainer.replay_buffer_sampling_hierarchy = ['solved']
+agent/SupervisedTrainer.target = @alpacka.trainers.supervised.target_value
+
+# Parameters for DeterministicMCTSAgent:
+# ==============================================================================
+DeterministicMCTSAgent.avoid_loops = True
+DeterministicMCTSAgent.gamma = 0.99
+DeterministicMCTSAgent.n_passes = 10
+DeterministicMCTSAgent.value_traits_class = @alpacka.agents.deterministic_mcts.ScalarValueTraits
+DeterministicMCTSAgent.value_accumulator_class = @alpacka.agents.deterministic_mcts.EnsembleValueAccumulator
+DeterministicMCTSAgent.ensemble_size = 20
+DeterministicMCTSAgent.n_ensembles_per_episode = 10
+DeterministicMCTSAgent.render_rollout = True
+DeterministicMCTSAgent.top_level_epsilon = 0.
+DeterministicMCTSAgent.avoid_termination = True
+
+# Parameters for ScalarValueTraits:
+# ==============================================================================
+ScalarValueTraits.dead_end_value = -0.2
+ScalarValueTraits.avoid_history_coeff = -0.2
+
+# Parameters for ToyMR:
+# ==============================================================================
+ToyMR.map_file = %ToyMRMaps.ONE_ROOM
+ToyMR.max_lives = 1
+ToyMR.absolute_coordinates = False
+ToyMR.trap_reward = 0
+ToyMR.doors_keys_scale = 1
+ToyMR.save_enter_cell = False
+
+# Parameters for input_observation_and_action:
+# ==============================================================================
+input_observation_and_action.actions_space_size = 4
+
+# Parameters for Model metrics:
+# ==============================================================================
+done/Precision.name = 'precision_done'
+done/Recall.name = 'recall_done'
+next_observation/Precision.name = 'precision_next_observation'
+next_observation/Recall.name = 'recall_next_observation'
+reward/Precision.name = 'precision_reward'
+reward/Recall.name = 'recall_reward'
