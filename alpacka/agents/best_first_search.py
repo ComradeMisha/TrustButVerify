@@ -141,6 +141,8 @@ class BestFirstSearchAgent(base.OnlineAgent):
         model_ensemble_mask_size=None,
         render_rollout=False,
         bonus_queue_length=200,
+        epsilon_avoid_traps=False,  # make epsilon-greedy avoid traps in toy_mr
+        filter_bonus_on_traps=False,  # make TBV avoid traps in toy_mr
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -180,6 +182,8 @@ class BestFirstSearchAgent(base.OnlineAgent):
 
         self._top_level_epsilon = top_level_epsilon
         self._bonus_quantile_threshold = bonus_quantile_threshold
+        self._epsilon_avoid_traps = epsilon_avoid_traps
+        self._filter_bonus_on_traps = filter_bonus_on_traps
 
     def _initialize_graph_node(self, initial_value, state, done, solved):
         value_acc = self._value_acc_class(initial_value)
@@ -215,8 +219,11 @@ class BestFirstSearchAgent(base.OnlineAgent):
             'obtaining which gives you reward=1 and ends episode. All other ' \
             'actions should give reward=0'
         solved = [reward == 1 for reward in rewards]
-        node.bonus = [info.get('bonus', 0.) for info in infos]
 
+        node.bonus = [
+            self._filter_bonus(info.get('bonus', 0.), reward, done)
+            for info, reward, done in zip(infos, rewards, dones)
+        ]
         node.value_acc.add_bonus(max(node.bonus))
         self._bonuses.append(max(node.bonus))
 
@@ -239,6 +246,15 @@ class BestFirstSearchAgent(base.OnlineAgent):
                 )
             node.edges[action] = new_node
         self._update_from_node(node)
+
+    def _filter_bonus(self, bonus, reward, done):
+        if (
+            self._filter_bonus_on_traps and
+            reward <= 0. and done
+        ):
+            return 0
+        else:
+            return bonus
 
     def reset(self, env, observation):
         yield from super().reset(env, observation)
@@ -289,6 +305,24 @@ class BestFirstSearchAgent(base.OnlineAgent):
         else:
             return None
 
+    def _allowed_actions(self, node, states_to_avoid, avoid_terminal):
+        def is_allowed(action, child):
+            if child.state in states_to_avoid:
+                return False
+            elif (
+                avoid_terminal and
+                node.rewards[action] <= 0. and
+                child.terminal
+            ):
+                return False
+            else:
+                return True
+
+        return [
+            action for action, child in node.edges.items()
+            if is_allowed(action, child)
+        ]
+
     def _select_action_top_level(self):
         action = None
         if self._bonus_quantile_threshold is not None:
@@ -301,7 +335,13 @@ class BestFirstSearchAgent(base.OnlineAgent):
                 self._current_node.value_acc.add_auxiliary(
                     -self._value_traits.avoid_history_coeff
                 )
-                action = self._model.action_space.sample()
+                no_trap_actions = self._allowed_actions(
+                    self._current_node, set(), avoid_terminal=True)
+                if no_trap_actions and self._epsilon_avoid_traps:
+                    action = np.random.choice(no_trap_actions)
+                else:
+                    action = np.random.choice(list(
+                        self._current_node.edges.keys()))
             else:
                 node = max(
                     self._reachable_nodes - {self._current_node},
@@ -401,6 +441,9 @@ class BestFirstSearchAgent(base.OnlineAgent):
                     # sends requests, is self._expand_leaf() method, where
                     # `n_actions` observations are sent - so we do the same
                     # here.
+                    #
+                    # In practice: in batch stepper allow different number of
+                    # observations to be sent from different agents.
                     n_actions = space_utils.max_size(self._model.action_space)
                     response = yield Request(
                         RequestType.AGENT_PREDICTION,
