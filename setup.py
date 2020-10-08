@@ -9,8 +9,6 @@ setup(
     install_requires=[
         'gin-config',
         'gym',
-        # (need to lazily define alpacka.envs.Sokoban then)
-        'gym_sokoban @ git+ssh://git@gitlab.com/awarelab/gym-sokoban.git',
         'numpy',
         'randomdict',
         'matplotlib',
