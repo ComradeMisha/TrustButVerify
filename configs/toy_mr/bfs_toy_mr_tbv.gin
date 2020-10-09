@@ -124,6 +124,7 @@ BestFirstSearchAgent.bonus_quantile_threshold = 0.95
 BestFirstSearchAgent.bonus_queue_length = 2000
 BestFirstSearchAgent.expand_heuristic = @alpacka.agents.best_first_search.bonus
 BestFirstSearchAgent.top_level_heuristic = @alpacka.agents.best_first_search.solved_then_auxiliary_then_bonus
+BestFirstSearchAgent.filter_bonus_on_traps = True
 
 # Parameters for ScalarValueTraits:
 # ==============================================================================
